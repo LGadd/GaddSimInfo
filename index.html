@@ -1,17 +1,724 @@
-<!DOCTYPE html>
-
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VehicleSim &mdash; Physics Framework</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="vehiclesim.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VehicleSim — Physics Framework</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,600;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:         #0a0b0d;
+    --surface:    #111318;
+    --surface2:   #181b22;
+    --border:     #252930;
+    --border2:    #2f343d;
+    --accent:     #e8ff47;
+    --accent2:    #ff5533;
+    --accent3:    #33aaff;
+    --text:       #c8cdd8;
+    --text-dim:   #5a616e;
+    --text-mid:   #8a919e;
+    --white:      #eef0f4;
+    --red:        #ff3322;
+    --green:      #44ee88;
+    --mono:       'IBM Plex Mono', monospace;
+    --sans:       'IBM Plex Sans', sans-serif;
+    --display:    'Bebas Neue', sans-serif;
+  }*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+background: var(–bg);
+color: var(–text);
+font-family: var(–sans);
+font-size: 15px;
+line-height: 1.6;
+overflow-x: hidden;
+}
+/* ── SCANLINE OVERLAY ── */
+body::before {
+content: ‘’;
+position: fixed;
+inset: 0;
+background: repeating-linear-gradient(
+0deg,
+transparent,
+transparent 2px,
+rgba(0,0,0,0.06) 2px,
+rgba(0,0,0,0.06) 4px
+);
+pointer-events: none;
+z-index: 9999;
+}
+/* ── NAV ── */
+nav {
+position: fixed;
+top: 0; left: 0; right: 0;
+z-index: 100;
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 0 40px;
+height: 56px;
+background: rgba(10,11,13,0.92);
+backdrop-filter: blur(12px);
+border-bottom: 1px solid var(–border);
+}
+.nav-logo {
+font-family: var(–display);
+font-size: 22px;
+letter-spacing: 3px;
+color: var(–white);
+}
+.nav-logo span { color: var(–accent); }
+.nav-links {
+display: flex;
+gap: 32px;
+list-style: none;
+}
+.nav-links a {
+font-family: var(–mono);
+font-size: 11px;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+color: var(–text-mid);
+text-decoration: none;
+transition: color 0.2s;
+}
+.nav-links a:hover { color: var(–accent); }
+.nav-status {
+display: flex;
+align-items: center;
+gap: 8px;
+font-family: var(–mono);
+font-size: 11px;
+color: var(–text-dim);
+}
+.status-dot {
+width: 6px; height: 6px;
+border-radius: 50%;
+background: var(–green);
+animation: pulse 2s infinite;
+}
+@keyframes pulse {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.3; }
+}
+/* ── HERO ── */
+.hero {
+min-height: 100vh;
+display: grid;
+grid-template-columns: 1fr 1fr;
+padding-top: 56px;
+position: relative;
+overflow: hidden;
+}
+.hero::after {
+content: ‘’;
+position: absolute;
+top: -200px; right: -200px;
+width: 700px; height: 700px;
+border-radius: 50%;
+background: radial-gradient(circle, rgba(232,255,71,0.04) 0%, transparent 70%);
+pointer-events: none;
+}
+.hero-left {
+display: flex;
+flex-direction: column;
+justify-content: center;
+padding: 80px 60px 80px 80px;
+position: relative;
+}
+.hero-eyebrow {
+font-family: var(–mono);
+font-size: 11px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–accent);
+margin-bottom: 24px;
+display: flex;
+align-items: center;
+gap: 12px;
+}
+.hero-eyebrow::before {
+content: ‘’;
+display: block;
+width: 32px;
+height: 1px;
+background: var(–accent);
+}
+h1 {
+font-family: var(–display);
+font-size: clamp(72px, 8vw, 120px);
+line-height: 0.9;
+letter-spacing: 2px;
+color: var(–white);
+margin-bottom: 32px;
+}
+h1 .accent { color: var(–accent); }
+h1 .dim { color: var(–text-dim); }
+.hero-desc {
+font-size: 16px;
+line-height: 1.7;
+color: var(–text-mid);
+max-width: 440px;
+margin-bottom: 48px;
+font-weight: 300;
+}
+.hero-cta {
+display: flex;
+gap: 16px;
+flex-wrap: wrap;
+}
+.btn {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+padding: 12px 28px;
+font-family: var(–mono);
+font-size: 12px;
+letter-spacing: 1.5px;
+text-transform: uppercase;
+text-decoration: none;
+border: none;
+cursor: pointer;
+transition: all 0.2s;
+}
+.btn-primary {
+background: var(–accent);
+color: var(–bg);
+font-weight: 500;
+}
+.btn-primary:hover { background: #d4eb30; transform: translateY(-1px); }
+.btn-outline {
+background: transparent;
+color: var(–text);
+border: 1px solid var(–border2);
+}
+.btn-outline:hover { border-color: var(–text-mid); color: var(–white); }
+.hero-right {
+display: flex;
+align-items: center;
+justify-content: center;
+padding: 80px 80px 80px 20px;
+position: relative;
+}
+.telemetry-panel {
+background: var(–surface);
+border: 1px solid var(–border2);
+width: 100%;
+max-width: 400px;
+position: relative;
+overflow: hidden;
+}
+.telemetry-panel::before {
+content: ‘’;
+position: absolute;
+top: 0; left: 0; right: 0;
+height: 2px;
+background: linear-gradient(90deg, var(–accent), transparent);
+}
+.telem-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 16px 20px;
+border-bottom: 1px solid var(–border);
+background: var(–surface2);
+}
+.telem-title {
+font-family: var(–mono);
+font-size: 11px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–text-mid);
+}
+.telem-badge {
+font-family: var(–mono);
+font-size: 10px;
+padding: 2px 8px;
+background: rgba(232,255,71,0.1);
+color: var(–accent);
+border: 1px solid rgba(232,255,71,0.2);
+}
+.telem-body { padding: 24px 20px; }
+.telem-row {
+display: flex;
+justify-content: space-between;
+align-items: baseline;
+padding: 10px 0;
+border-bottom: 1px solid var(–border);
+}
+.telem-row:last-child { border-bottom: none; }
+.telem-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: var(–text-dim);
+}
+.telem-value {
+font-family: var(–mono);
+font-size: 18px;
+color: var(–white);
+font-weight: 400;
+}
+.telem-value .unit {
+font-size: 10px;
+color: var(–text-dim);
+margin-left: 4px;
+}
+.telem-value.green { color: var(–green); }
+.telem-value.yellow { color: var(–accent); }
+.telem-value.red { color: var(–accent2); }
+.bar-container {
+margin-top: 20px;
+padding-top: 20px;
+border-top: 1px solid var(–border);
+}
+.bar-label-row {
+display: flex;
+justify-content: space-between;
+margin-bottom: 6px;
+}
+.bar-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 1px;
+text-transform: uppercase;
+color: var(–text-dim);
+}
+.bar-track {
+height: 4px;
+background: var(–border);
+margin-bottom: 10px;
+position: relative;
+overflow: hidden;
+}
+.bar-fill {
+height: 100%;
+background: var(–accent);
+transform-origin: left;
+animation: fillBar 2s ease forwards;
+}
+.bar-fill.red { background: var(–accent2); }
+.bar-fill.blue { background: var(–accent3); }
+@keyframes fillBar {
+from { width: 0; }
+}
+.grid-decoration {
+position: absolute;
+bottom: 0; right: 0;
+width: 120px; height: 120px;
+opacity: 0.04;
+background-image:
+linear-gradient(var(–accent) 1px, transparent 1px),
+linear-gradient(90deg, var(–accent) 1px, transparent 1px);
+background-size: 12px 12px;
+}
+/* ── SECTION SHARED ── */
+section {
+padding: 100px 80px;
+border-top: 1px solid var(–border);
+position: relative;
+}
+.section-eyebrow {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–accent);
+margin-bottom: 16px;
+}
+h2 {
+font-family: var(–display);
+font-size: clamp(40px, 5vw, 68px);
+letter-spacing: 2px;
+color: var(–white);
+line-height: 1;
+margin-bottom: 20px;
+}
+.section-lead {
+font-size: 16px;
+color: var(–text-mid);
+max-width: 580px;
+line-height: 1.7;
+margin-bottom: 64px;
+font-weight: 300;
+}
+/* ── FEATURES ── */
+#features { background: var(–bg); }
+.features-grid {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 1px;
+background: var(–border);
+border: 1px solid var(–border);
+}
+.feature-card {
+background: var(–surface);
+padding: 36px 32px;
+position: relative;
+overflow: hidden;
+transition: background 0.3s;
+}
+.feature-card:hover { background: var(–surface2); }
+.feature-card::after {
+content: ‘’;
+position: absolute;
+bottom: 0; left: 0; right: 0;
+height: 2px;
+background: var(–accent);
+transform: scaleX(0);
+transform-origin: left;
+transition: transform 0.3s ease;
+}
+.feature-card:hover::after { transform: scaleX(1); }
+.feature-num {
+font-family: var(–mono);
+font-size: 11px;
+color: var(–text-dim);
+letter-spacing: 2px;
+margin-bottom: 20px;
+}
+.feature-icon {
+width: 40px; height: 40px;
+margin-bottom: 20px;
+display: flex;
+align-items: center;
+justify-content: center;
+border: 1px solid var(–border2);
+color: var(–accent);
+}
+.feature-icon svg { width: 20px; height: 20px; }
+h3 {
+font-family: var(–sans);
+font-size: 16px;
+font-weight: 600;
+color: var(–white);
+margin-bottom: 12px;
+letter-spacing: 0.3px;
+}
+.feature-card p {
+font-size: 13.5px;
+color: var(–text-mid);
+line-height: 1.65;
+font-weight: 300;
+}
+.feature-tag {
+display: inline-block;
+margin-top: 16px;
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 1px;
+text-transform: uppercase;
+padding: 3px 8px;
+border: 1px solid var(–border2);
+color: var(–text-dim);
+}
+/* ── BENEFITS ── */
+#benefits { background: var(–surface); }
+.benefits-layout {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 80px;
+align-items: start;
+}
+.benefit-item {
+display: flex;
+gap: 24px;
+padding: 28px 0;
+border-bottom: 1px solid var(–border);
+animation: fadeUp 0.5s ease both;
+}
+.benefit-item:last-child { border-bottom: none; }
+.benefit-num {
+font-family: var(–display);
+font-size: 42px;
+color: var(–border2);
+line-height: 1;
+min-width: 52px;
+transition: color 0.3s;
+}
+.benefit-item:hover .benefit-num { color: var(–accent); }
+.benefit-content h3 { margin-bottom: 8px; }
+.benefit-content p {
+font-size: 13.5px;
+color: var(–text-mid);
+line-height: 1.65;
+font-weight: 300;
+}
+.stat-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 1px;
+background: var(–border);
+border: 1px solid var(–border);
+height: fit-content;
+}
+.stat-cell {
+background: var(–surface2);
+padding: 32px 28px;
+position: relative;
+overflow: hidden;
+}
+.stat-cell::before {
+content: attr(data-label);
+display: block;
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–text-dim);
+margin-bottom: 12px;
+}
+.stat-number {
+font-family: var(–display);
+font-size: 52px;
+color: var(–white);
+line-height: 1;
+}
+.stat-number .accent { color: var(–accent); }
+.stat-sub {
+font-family: var(–mono);
+font-size: 11px;
+color: var(–text-dim);
+margin-top: 8px;
+}
+/* ── DEV TIPS ── */
+#tips { background: var(–bg); }
+.tips-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 24px;
+}
+.tip-card {
+background: var(–surface);
+border: 1px solid var(–border);
+padding: 32px;
+position: relative;
+transition: border-color 0.3s;
+}
+.tip-card:hover { border-color: var(–border2); }
+.tip-label {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+margin-bottom: 16px;
+display: flex;
+align-items: center;
+gap: 8px;
+}
+.tip-label::before {
+content: ‘’;
+width: 6px; height: 6px;
+border-radius: 50%;
+background: var(–accent3);
+flex-shrink: 0;
+}
+.tip-label { color: var(–accent3); }
+.tip-card.warn .tip-label::before { background: var(–accent); }
+.tip-card.warn .tip-label { color: var(–accent); }
+.tip-card.danger .tip-label::before { background: var(–accent2); }
+.tip-card.danger .tip-label { color: var(–accent2); }
+.tip-card h3 {
+font-size: 15px;
+margin-bottom: 10px;
+color: var(–white);
+}
+.tip-card p {
+font-size: 13px;
+color: var(–text-mid);
+line-height: 1.65;
+font-weight: 300;
+}
+.code-block {
+margin-top: 16px;
+background: var(–bg);
+border: 1px solid var(–border);
+padding: 14px 16px;
+font-family: var(–mono);
+font-size: 12px;
+line-height: 1.6;
+color: var(–text-dim);
+overflow-x: auto;
+}
+.code-block .kw { color: var(–accent3); }
+.code-block .val { color: var(–accent); }
+.code-block .cm { color: var(–text-dim); opacity: 0.6; font-style: italic; }
+.code-block .fn { color: var(–green); }
+/* ── IMPROVEMENTS ── */
+#improvements { background: var(–surface); }
+.improvements-list {
+display: grid;
+grid-template-columns: repeat(3, 1fr);
+gap: 1px;
+background: var(–border);
+border: 1px solid var(–border);
+margin-bottom: 60px;
+}
+.improvement-card {
+background: var(–surface2);
+padding: 32px 28px;
+position: relative;
+transition: background 0.3s;
+cursor: default;
+}
+.improvement-card:hover { background: #1e2129; }
+.imp-type {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+padding: 3px 8px;
+margin-bottom: 16px;
+display: inline-block;
+}
+.imp-type.new { background: rgba(232,255,71,0.08); color: var(–accent); border: 1px solid rgba(232,255,71,0.15); }
+.imp-type.fix { background: rgba(255,85,51,0.08); color: var(–accent2); border: 1px solid rgba(255,85,51,0.15); }
+.imp-type.enhance { background: rgba(51,170,255,0.08); color: var(–accent3); border: 1px solid rgba(51,170,255,0.15); }
+.improvement-card h3 { font-size: 14px; margin-bottom: 10px; color: var(–white); }
+.improvement-card p { font-size: 12.5px; color: var(–text-mid); line-height: 1.6; font-weight: 300; }
+.priority-row {
+display: flex;
+gap: 8px;
+margin-top: 12px;
+flex-wrap: wrap;
+}
+.priority {
+font-family: var(–mono);
+font-size: 9px;
+letter-spacing: 1px;
+text-transform: uppercase;
+padding: 2px 7px;
+border: 1px solid var(–border2);
+color: var(–text-dim);
+}
+/* ── ARCHITECTURE ── */
+#architecture { background: var(–bg); }
+.arch-diagram {
+display: grid;
+grid-template-columns: repeat(4, 1fr);
+gap: 1px;
+background: var(–border);
+border: 1px solid var(–border);
+}
+.arch-col {
+background: var(–surface);
+padding: 28px 24px;
+}
+.arch-col-header {
+font-family: var(–mono);
+font-size: 10px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–text-dim);
+padding-bottom: 16px;
+border-bottom: 1px solid var(–border);
+margin-bottom: 16px;
+}
+.arch-item {
+font-family: var(–mono);
+font-size: 12px;
+color: var(–text-mid);
+padding: 7px 0;
+border-bottom: 1px solid var(–border);
+display: flex;
+align-items: center;
+gap: 8px;
+transition: color 0.2s;
+}
+.arch-item:last-child { border-bottom: none; }
+.arch-item:hover { color: var(–white); }
+.arch-item::before {
+content: ‘’;
+width: 4px; height: 4px;
+border-radius: 50%;
+background: var(–border2);
+flex-shrink: 0;
+transition: background 0.2s;
+}
+.arch-item:hover::before { background: var(–accent); }
+/* ── FOOTER ── */
+footer {
+padding: 48px 80px;
+border-top: 1px solid var(–border);
+background: var(–surface);
+display: flex;
+justify-content: space-between;
+align-items: center;
+flex-wrap: wrap;
+gap: 24px;
+}
+.footer-logo {
+font-family: var(–display);
+font-size: 20px;
+letter-spacing: 3px;
+color: var(–text-dim);
+}
+.footer-logo span { color: var(–accent); }
+.footer-text {
+font-family: var(–mono);
+font-size: 11px;
+color: var(–text-dim);
+letter-spacing: 1px;
+}
+.footer-links {
+display: flex;
+gap: 24px;
+list-style: none;
+}
+.footer-links a {
+font-family: var(–mono);
+font-size: 11px;
+color: var(–text-dim);
+text-decoration: none;
+transition: color 0.2s;
+}
+.footer-links a:hover { color: var(–accent); }
+/* ── SCROLL REVEAL ── */
+.reveal {
+opacity: 0;
+transform: translateY(28px);
+transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.visible {
+opacity: 1;
+transform: translateY(0);
+}
+/* ── SEPARATOR ── */
+.rule {
+border: none;
+height: 1px;
+background: var(–border);
+margin: 0;
+}
+/* ── RESPONSIVE ── */
+@media (max-width: 1100px) {
+.hero { grid-template-columns: 1fr; }
+.hero-right { display: none; }
+.hero-left { padding: 80px 40px; }
+.features-grid { grid-template-columns: repeat(2, 1fr); }
+.benefits-layout { grid-template-columns: 1fr; }
+.tips-grid { grid-template-columns: 1fr; }
+.improvements-list { grid-template-columns: repeat(2, 1fr); }
+.arch-diagram { grid-template-columns: repeat(2, 1fr); }
+section { padding: 80px 40px; }
+footer { padding: 40px; }
+}
+@media (max-width: 680px) {
+nav { padding: 0 20px; }
+.nav-links { display: none; }
+.features-grid { grid-template-columns: 1fr; }
+.improvements-list { grid-template-columns: 1fr; }
+.arch-diagram { grid-template-columns: 1fr; }
+.stat-grid { grid-template-columns: 1fr; }
+section { padding: 64px 20px; }
+footer { padding: 32px 20px; flex-direction: column; align-items: flex-start; }
+}
+</style>
 </head>
-<body>
-
-<nav>
+<body><!-- NAV --><nav>
   <div class="nav-logo">VEHICLE<span>SIM</span></div>
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
@@ -20,18 +727,25 @@
     <li><a href="#improvements">Roadmap</a></li>
     <li><a href="#architecture">Architecture</a></li>
   </ul>
-  <div class="nav-status"><div class="status-dot"></div>v1.0.0 &mdash; Unity 2022+</div>
-</nav>
-
-<!-- ── HERO ── -->
-
-<section class="hero" style="border-top:none;padding:0">
+  <div class="nav-status">
+    <div class="status-dot"></div>
+    v1.0.0 — Unity 2022+
+  </div>
+</nav><!-- HERO --><section class="hero" style="border-top:none; padding:0;">
   <div class="hero-left">
     <div class="hero-eyebrow">Physics-Based Vehicle Framework</div>
-    <h1>PRECISION<br><span class="accent">VEHICLE</span><br><span class="dim">PHYSICS</span></h1>
-    <p class="hero-desc">A modular, scriptable-object-driven vehicle simulation built on real tyre mechanics, accurate drivetrain modelling, and a fully data-driven tuning pipeline &mdash; all running inside Unity's physics engine.</p>
+    <h1>
+      PRECISION<br>
+      <span class="accent">VEHICLE</span><br>
+      <span class="dim">PHYSICS</span>
+    </h1>
+    <p class="hero-desc">
+      A modular, scriptable-object-driven vehicle simulation built on real tyre mechanics, 
+      accurate drivetrain modelling, and a fully data-driven tuning pipeline — all running 
+      inside Unity's physics engine.
+    </p>
     <div class="hero-cta">
-      <a href="#features" class="btn btn-primary">Explore Features &#8594;</a>
+      <a href="#features" class="btn btn-primary">Explore Features →</a>
       <a href="#tips" class="btn btn-outline">Dev Documentation</a>
     </div>
   </div>
@@ -42,37 +756,61 @@
         <span class="telem-badge">RUNNING</span>
       </div>
       <div class="telem-body">
-        <div class="telem-row"><span class="telem-label">Engine RPM</span><span class="telem-value yellow" id="rpm-val">4,820<span class="unit">rpm</span></span></div>
-        <div class="telem-row"><span class="telem-label">Speed</span><span class="telem-value green" id="speed-val">87<span class="unit">mph</span></span></div>
-        <div class="telem-row"><span class="telem-label">Gear</span><span class="telem-value">4<span class="unit">/ 6</span></span></div>
-        <div class="telem-row"><span class="telem-label">Lateral G</span><span class="telem-value red" id="g-val">0.74<span class="unit">G</span></span></div>
-        <div class="telem-row"><span class="telem-label">Drive Config</span><span class="telem-value" style="font-size:14px;color:var(--accent3)">RWD</span></div>
+        <div class="telem-row">
+          <span class="telem-label">Engine RPM</span>
+          <span class="telem-value yellow" id="rpm-val">4,820<span class="unit">rpm</span></span>
+        </div>
+        <div class="telem-row">
+          <span class="telem-label">Speed</span>
+          <span class="telem-value green" id="speed-val">87<span class="unit">mph</span></span>
+        </div>
+        <div class="telem-row">
+          <span class="telem-label">Gear</span>
+          <span class="telem-value white">4<span class="unit">/ 6</span></span>
+        </div>
+        <div class="telem-row">
+          <span class="telem-label">Lateral G</span>
+          <span class="telem-value red" id="g-val">0.74<span class="unit">G</span></span>
+        </div>
+        <div class="telem-row">
+          <span class="telem-label">Drive Config</span>
+          <span class="telem-value" style="font-size:14px;color:var(--accent3)">RWD</span>
+        </div>
         <div class="bar-container">
-          <div class="bar-label-row"><span class="bar-label">FL Tyre Load</span><span class="bar-label">68%</span></div>
+          <div class="bar-label-row">
+            <span class="bar-label">FL Tyre Load</span>
+            <span class="bar-label" id="fl-val">68%</span>
+          </div>
           <div class="bar-track"><div class="bar-fill" style="width:68%"></div></div>
-          <div class="bar-label-row"><span class="bar-label">FR Tyre Load</span><span class="bar-label">82%</span></div>
+          <div class="bar-label-row">
+            <span class="bar-label">FR Tyre Load</span>
+            <span class="bar-label">82%</span>
+          </div>
           <div class="bar-track"><div class="bar-fill red" style="width:82%"></div></div>
-          <div class="bar-label-row"><span class="bar-label">Slip Ratio RL</span><span class="bar-label">14%</span></div>
+          <div class="bar-label-row">
+            <span class="bar-label">Slip Ratio RL</span>
+            <span class="bar-label">14%</span>
+          </div>
           <div class="bar-track"><div class="bar-fill blue" style="width:14%"></div></div>
         </div>
       </div>
       <div class="grid-decoration"></div>
     </div>
   </div>
-</section>
-
-<!-- ── FEATURES ── -->
-
-<section id="features">
+</section><!-- FEATURES --><section id="features">
   <div class="section-eyebrow">Core Systems</div>
   <h2>KEY FEATURES</h2>
-  <p class="section-lead">Every subsystem is a self-contained ScriptableObject &mdash; swap tyres, engines, and suspension setups without touching a line of code.</p>
+  <p class="section-lead">
+    Every subsystem is a self-contained ScriptableObject — swap tyres, engines, 
+    and suspension setups without touching a line of code.
+  </p>
   <div class="features-grid">
 
-```
 <div class="feature-card reveal">
   <div class="feature-num">01</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+  </div>
   <h3>Pacejka Magic Formula Tyre Model</h3>
   <p>Full Pacejka '94 implementation for both longitudinal and lateral slip forces, with B, C, D, E parameters tunable per tyre compound. Includes friction ellipse combined-slip limiting and slip-circle cosine weighting.</p>
   <span class="feature-tag">TyreFriction.cs</span>
@@ -80,15 +818,19 @@
 
 <div class="feature-card reveal">
   <div class="feature-num">02</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22V12M12 12L8 8M12 12l4-4M3 7l9-5 9 5M3 7v10l9 5 9-5V7"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22V12M12 12L8 8M12 12l4-4M3 7l9-5 9 5M3 7v10l9 5 9-5V7"/></svg>
+  </div>
   <h3>Scriptable Object Tuning Pipeline</h3>
-  <p>Every tunable parameter lives in a dedicated ScriptableObject asset &mdash; engine performance, gearing, suspension, brakes, aerodynamics, input sensitivity. Multiple vehicle variants share and override the same assets.</p>
+  <p>Every tunable parameter lives in a dedicated ScriptableObject asset — engine performance, gearing, suspension, brakes, aerodynamics, input sensitivity. Multiple vehicle variants share and override the same assets.</p>
   <span class="feature-tag">All *Tuning.cs</span>
 </div>
 
 <div class="feature-card reveal">
   <div class="feature-num">03</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+  </div>
   <h3>Suspension with Separate Bump / Rebound</h3>
   <p>Raycast-based spring-damper suspension with independent bump and rebound damper coefficients, preload compression, ride height targeting, and projected-plane normal force calculation for accurate load transfer on slopes.</p>
   <span class="feature-tag">WheelSuspension.cs</span>
@@ -96,15 +838,19 @@
 
 <div class="feature-card reveal">
   <div class="feature-num">04</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
-  <h3>Automatic &amp; Manual Transmission</h3>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+  </div>
+  <h3>Automatic & Manual Transmission</h3>
   <p>Supports both manual and automatic gearboxes. Auto mode uses RPM-based upshift and a downshift target RPM calculation per gear. Includes clutch engagement simulation with configurable slip delay and gear-change neutral state.</p>
   <span class="feature-tag">CarEngine.cs</span>
 </div>
 
 <div class="feature-card reveal">
   <div class="feature-num">05</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+  </div>
   <h3>RWD / FWD / AWD / LSD Drivetrains</h3>
   <p>Four drivetrain configurations including a simulated Limited Slip Differential that promotes all-wheel drive when rear slip exceeds a threshold. AWD torque split is configurable with a front axle differential percentage bias.</p>
   <span class="feature-tag">DrivetrainTuning.cs</span>
@@ -112,7 +858,9 @@
 
 <div class="feature-card reveal">
   <div class="feature-num">06</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+  </div>
   <h3>Ackermann Steering Geometry</h3>
   <p>Per-wheel steering angles calculated from wheelbase and track width geometry. Blends between parallel and full Ackermann via a configurable percentage. Speed-sensitive steering reduction, countersteer assist, and understeer angle damping built in.</p>
   <span class="feature-tag">Steering.cs</span>
@@ -120,7 +868,9 @@
 
 <div class="feature-card reveal">
   <div class="feature-num">07</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+  </div>
   <h3>Anti-Roll Bar System</h3>
   <p>Front and rear anti-roll bars with independent stiffness and damping. Supports equal, compression-weighted, and inverted-weight force distribution modes. Forces applied at hub positions to accurately model body roll stiffness.</p>
   <span class="feature-tag">AntiRoll.cs</span>
@@ -128,204 +878,328 @@
 
 <div class="feature-card reveal">
   <div class="feature-num">08</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>
+  </div>
   <h3>Aerodynamic Drag &amp; Downforce</h3>
-  <p>Velocity-squared drag in both longitudinal and lateral axes, plus downforce &mdash; each with independent area and coefficient parameters. Forces are direction-aware and applied every fixed timestep for realistic high-speed handling.</p>
+  <p>Velocity-squared drag in both longitudinal and lateral axes, plus downforce — each with independent area and coefficient parameters. Forces are direction-aware and applied every fixed timestep for realistic high-speed handling.</p>
   <span class="feature-tag">VehicleDragTuning.cs</span>
 </div>
 
 <div class="feature-card reveal">
   <div class="feature-num">09</div>
-  <div class="feature-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg></div>
+  <div class="feature-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+  </div>
   <h3>Layered Audio Engine</h3>
-  <p>Four-layer audio system &mdash; rev up, rev down, redline, and idle &mdash; with RPM-driven pitch and volume interpolation. Smooth crossfade logic based on throttle position prevents abrupt transitions at rpm boundaries.</p>
+  <p>Four-layer audio system — rev up, rev down, redline, and idle — with RPM-driven pitch and volume interpolation. Smooth crossfade logic based on throttle position prevents abrupt transitions at rpm boundaries.</p>
   <span class="feature-tag">EngineAudioTuning.cs</span>
 </div>
-```
 
-  </div>
-</section>
 
-<!-- ── BENEFITS ── -->
-
-<section id="benefits">
+</div>
+</section><!-- BENEFITS --><section id="benefits">
   <div class="section-eyebrow">Why This Framework</div>
   <h2>BENEFITS</h2>
-  <p class="section-lead">Designed so vehicle feel can be iterated entirely through data assets, with no code changes required between prototyping and final tuning.</p>
+  <p class="section-lead">
+    Designed so vehicle feel can be iterated entirely through data assets, 
+    with no code changes required between prototyping and final tuning.
+  </p>
   <div class="benefits-layout">
     <div>
       <div class="benefit-item reveal">
         <div class="benefit-num">01</div>
-        <div class="benefit-content"><h3>Zero-Code Vehicle Variants</h3><p>Every parameter &mdash; from final drive ratio to anti-roll stiffness &mdash; lives in a ScriptableObject. Creating a new vehicle variant means duplicating and adjusting assets, not touching MonoBehaviour code.</p></div>
+        <div class="benefit-content">
+          <h3>Zero-Code Vehicle Variants</h3>
+          <p>Every parameter — from final drive ratio to anti-roll stiffness — lives in a ScriptableObject. Creating a new vehicle variant means duplicating and adjusting assets, not touching MonoBehaviour code.</p>
+        </div>
       </div>
       <div class="benefit-item reveal">
         <div class="benefit-num">02</div>
-        <div class="benefit-content"><h3>Real Tyre Physics Foundation</h3><p>The Pacejka Magic Formula is the same mathematical model used by real motorsport simulation software. Forces behave correctly under combined slip, load variation, and surface coefficient changes &mdash; emergent behaviour follows naturally.</p></div>
+        <div class="benefit-content">
+          <h3>Real Tyre Physics Foundation</h3>
+          <p>The Pacejka Magic Formula is the same mathematical model used by real motorsport simulation software. Forces behave correctly under combined slip, load variation, and surface coefficient changes — emergent behaviour follows naturally.</p>
+        </div>
       </div>
       <div class="benefit-item reveal">
         <div class="benefit-num">03</div>
-        <div class="benefit-content"><h3>Impulse / Average Force Modes</h3><p>A single toggle switches the entire force pipeline between impulse (instantaneous, exact) and continuous (blended over time) application modes. Useful for switching between tight simulation accuracy and smoother gameplay feel.</p></div>
+        <div class="benefit-content">
+          <h3>Impulse / Average Force Modes</h3>
+          <p>A single toggle switches the entire force pipeline between impulse (instantaneous, exact) and continuous (blended over time) application modes. Useful for switching between tight simulation accuracy and smoother gameplay feel.</p>
+        </div>
       </div>
       <div class="benefit-item reveal">
         <div class="benefit-num">04</div>
-        <div class="benefit-content"><h3>Modular System Boundaries</h3><p>Friction, suspension, drivetrain, audio, and effects are cleanly separated. Replacing the tyre model, adding a new drivetrain mode, or swapping the audio system requires changes in exactly one place.</p></div>
+        <div class="benefit-content">
+          <h3>Modular System Boundaries</h3>
+          <p>Friction, suspension, drivetrain, audio, and effects are cleanly separated. Replacing the tyre model, adding a new drivetrain mode, or swapping the audio system requires changes in exactly one place.</p>
+        </div>
       </div>
     </div>
     <div class="stat-grid reveal">
-      <div class="stat-cell" data-label="Tunable Parameters"><div class="stat-number">50<span class="accent">+</span></div><div class="stat-sub">ScriptableObject fields</div></div>
-      <div class="stat-cell" data-label="Drivetrain Modes"><div class="stat-number">4</div><div class="stat-sub">RWD / FWD / AWD / LSD</div></div>
-      <div class="stat-cell" data-label="Force Pipeline"><div class="stat-number">2</div><div class="stat-sub">Impulse &amp; Average modes</div></div>
-      <div class="stat-cell" data-label="Core Files"><div class="stat-number">26</div><div class="stat-sub">Scripts + tuning assets</div></div>
-      <div class="stat-cell" data-label="Tyre Model"><div class="stat-number" style="font-size:28px">Pacejka</div><div class="stat-sub">Magic Formula '94</div></div>
-      <div class="stat-cell" data-label="Target Runtime"><div class="stat-number" style="font-size:28px">Unity</div><div class="stat-sub">2022 LTS &mdash; 6.x</div></div>
+      <div class="stat-cell" data-label="Tunable Parameters">
+        <div class="stat-number">50<span class="accent">+</span></div>
+        <div class="stat-sub">ScriptableObject fields</div>
+      </div>
+      <div class="stat-cell" data-label="Drivetrain Modes">
+        <div class="stat-number">4</div>
+        <div class="stat-sub">RWD / FWD / AWD / LSD</div>
+      </div>
+      <div class="stat-cell" data-label="Force Pipeline">
+        <div class="stat-number">2</div>
+        <div class="stat-sub">Impulse & Average modes</div>
+      </div>
+      <div class="stat-cell" data-label="Core Files">
+        <div class="stat-number">26</div>
+        <div class="stat-sub">Scripts + tuning assets</div>
+      </div>
+      <div class="stat-cell" data-label="Tyre Model">
+        <div class="stat-number" style="font-size:28px">Pacejka</div>
+        <div class="stat-sub">Magic Formula '94</div>
+      </div>
+      <div class="stat-cell" data-label="Target Runtime">
+        <div class="stat-number" style="font-size:28px">Unity</div>
+        <div class="stat-sub">2022 LTS — 6.x</div>
+      </div>
     </div>
   </div>
-</section>
-
-<!-- ── DEV TIPS ── -->
-
-<section id="tips">
+</section><!-- DEV TIPS --><section id="tips">
   <div class="section-eyebrow">Developer Notes</div>
   <h2>DEV TIPS</h2>
-  <p class="section-lead">Practical guidance for extending, tuning, and debugging the framework &mdash; particularly around the physics pipeline's ordering and data dependencies.</p>
+  <p class="section-lead">
+    Practical guidance for extending, tuning, and debugging the framework — 
+    particularly around the physics pipeline's ordering and data dependencies.
+  </p>
   <div class="tips-grid">
 
-```
 <div class="tip-card warn reveal">
   <div class="tip-label">Tuning</div>
   <h3>Start Pacejka D at 1.0, Tune B First</h3>
-  <p>The B (shape) parameter controls how quickly the tyre reaches peak force. Low B (6&ndash;8) = gradual progressive grip. High B (12&ndash;16) = sharp spike then drop-off. Set D last as it simply scales the peak &mdash; adjust the curve shape first.</p>
-  <div class="code-block"><span class="cm">// TyreFrictionTuning &mdash; suggested starting values</span>
-```
+  <p>The B (shape) parameter controls how quickly the tyre reaches peak force. Low B (6–8) = gradual progressive grip. High B (12–16) = sharp spike then drop-off. Set D last as it simply scales the peak — adjust the curve shape first.</p>
+  <div class="code-block">
 
+
+<span class="cm">// TyreFrictionTuning — suggested starting values</span>
 linearShapeB      = <span class="val">10f</span>;   <span class="cm">// grip buildup rate</span>
 linearStiffnessC  = <span class="val">1.6f</span>;  <span class="cm">// curve shape (1.4–1.8)</span>
 linearPeakD       = <span class="val">1.0f</span>;  <span class="cm">// peak friction coeff</span>
-linearAsymmetryE  = <span class="val">0.97f</span>; <span class="cm">// post-peak drop-off</span></div>
+linearAsymmetryE  = <span class="val">0.97f</span>; <span class="cm">// post-peak drop-off</span>
+</div>
 </div>
 
-```
 <div class="tip-card reveal">
   <div class="tip-label">Physics</div>
   <h3>Centre of Mass Placement Is Critical</h3>
   <p>The CoM Transform drives both tyre load distribution and front/rear wheel assignment. Place it low and slightly rearward of geometric centre for realistic weight transfer. Too high causes excessive body roll that no anti-roll stiffness can fully compensate.</p>
-  <div class="code-block"><span class="cm">// CarController.Start &mdash; CoM assigned here</span>
-```
+  <div class="code-block">
 
+
+<span class="cm">// CarController.Start — CoM assigned here</span>
 <span class="kw">if</span> (centreOfMass != <span class="kw">null</span>)
 RB.centerOfMass = centreOfMass.localPosition;
 <span class="cm">// WheelData.AssignWheelPosition() reads this —
-// must run AFTER CarController.Start()</span></div>
+// must run AFTER CarController.Start()</span>
+</div>
 </div>
 
-```
 <div class="tip-card warn reveal">
   <div class="tip-label">Tuning</div>
   <h3>Suspension SpringStiffness vs Vehicle Mass</h3>
-  <p>A sensible starting stiffness is roughly <code>mass &times; gravity / 4 / rideHeight</code>. At 1500 kg that gives ~9200 N/m per corner at 0.4 m ride height. The default 25000 is stiff &mdash; fine for a sports car, but will cause bounce on a heavier vehicle.</p>
-  <div class="code-block"><span class="cm">// Rough ride frequency target: 1&ndash;2 Hz (road car)
-```
+  <p>A sensible starting stiffness is roughly <code>mass × gravity / 4 / rideHeight</code>. At 1500 kg that gives ~9200 N/m per corner at 0.4 m ride height. The default 25000 is stiff — fine for a sports car, but will cause bounce on a heavier vehicle.</p>
+  <div class="code-block">
 
-// f = sqrt(k / m_corner) / (2 * PI)</span>
+
+<span class="cm">// Rough ride frequency target: 1–2 Hz (road car)</span>
+<span class="cm">// f = sqrt(k / m_corner) / (2 * PI)</span>
 springStiffness = <span class="val">25000f</span>;  <span class="cm">// per-corner spring</span>
-bumpDamperCoeff = <span class="val">4500f</span>;   <span class="cm">// ~60–70% critical</span></div>
+bumpDamperCoeff = <span class="val">4500f</span>;   <span class="cm">// ~60–70% critical</span>
+</div>
 </div>
 
-```
 <div class="tip-card reveal">
   <div class="tip-label">Workflow</div>
   <h3>Use Animation Curves for Exotic Compounds</h3>
   <p>Toggle <code>useAnimationCurves</code> on TyreFrictionTuning to replace the Pacejka formula entirely with an authored curve. This is useful for highly specific compounds (slicks, rain tyres) where you want a precise visual grip vs. slip shape without fitting Pacejka parameters.</p>
-  <div class="code-block"><span class="cm">// TyreFrictionTuning</span>
-```
+  <div class="code-block">
 
+
+<span class="cm">// TyreFrictionTuning</span>
 <span class="kw">public bool</span> useAnimationCurves = <span class="val">true</span>;
 <span class="kw">public</span> AnimationCurve linearSlipCurve;
 <span class="kw">public</span> AnimationCurve lateralSlipCurve;
-<span class="cm">// Curve X = slip ratio (0–1), Y = friction coeff</span></div>
+<span class="cm">// Curve X = slip ratio (0–1), Y = friction coeff</span>
+</div>
 </div>
 
-```
 <div class="tip-card reveal">
   <div class="tip-label">Tuning</div>
   <h3>Anti-Roll Stiffness Shapes Handling Balance</h3>
-  <p>Increasing front anti-roll stiffness relative to rear pushes the balance toward understeer. Use the <em>ratio</em> between front and rear, not the absolute values, to set balance. Start both equal then bias from there.</p>
-  <div class="code-block"><span class="cm">// AntiRollTuning &mdash; balance example</span>
-```
+  <p>Increasing front anti-roll stiffness relative to rear pushes the balance toward understeer — the front resists roll more, limiting inner-front load transfer and capping front grip. The reverse promotes oversteer. Use the <em>ratio</em> between front and rear, not the absolute values, to set balance. Start both equal then bias from there.</p>
+  <div class="code-block">
 
+
+<span class="cm">// AntiRollTuning — balance example</span>
 frontAntiRollStiffness = <span class="val">12000f</span>; <span class="cm">// stiffer front = understeer</span>
 rearAntiRollStiffness  = <span class="val">8000f</span>;  <span class="cm">// softer rear = stable</span>
-<span class="cm">// Equal values = neutral baseline</span></div>
+<span class="cm">// Equal values = neutral baseline</span>
+</div>
 </div>
 
-```
 <div class="tip-card warn reveal">
   <div class="tip-label">Tuning</div>
   <h3>countersteerAngleWeight Tunes Oversteer Feel</h3>
-  <p>This parameter in SteeringData scales how aggressively the steering angle opens up when rear slip is detected. At 0 the car has no assisted countersteer. At 3&ndash;4 it becomes very arcade. 1.5&ndash;2.0 is a good simulation-oriented range that rewards correct technique without being punishing.</p>
+  <p>This parameter in SteeringData scales how aggressively the steering angle opens up when rear slip is detected. At 0 the car has no assisted countersteer. At 3–4 it becomes very arcade. 1.5–2.0 is a good simulation-oriented range that rewards correct technique without being punishing.</p>
 </div>
 
 <div class="tip-card reveal">
   <div class="tip-label">Tuning</div>
   <h3>Final Drive Ratio Controls In-Gear Acceleration</h3>
-  <p>The <code>finalDriveRatio</code> multiplies every gear ratio, re-scaling the entire power delivery without altering the spread between gears. Set the gear spread first, then use final drive to dial the overall torque feel.</p>
-  <div class="code-block"><span class="cm">// GearingTuning</span>
-```
+  <p>The <code>finalDriveRatio</code> multiplies every gear ratio, re-scaling the entire power delivery without altering the spread between gears. A higher value gives more torque multiplication and stronger acceleration but lowers top speed in each gear. Set the gear spread first, then use final drive to dial the overall torque feel.</p>
+  <div class="code-block">
 
+
+<span class="cm">// GearingTuning</span>
 finalDriveRatio = <span class="val">3.5f</span>;  <span class="cm">// more torque, lower top speed</span>
 finalDriveRatio = <span class="val">2.8f</span>;  <span class="cm">// less torque, higher top speed</span>
-<span class="cm">// Tune gear spread first, then finalDrive for overall feel</span></div>
+<span class="cm">// Tune gear spread first, then finalDrive for overall feel</span>
 </div>
-
-  </div>
-</section>
-
-<!-- ── IMPROVEMENTS ── -->
-
-<section id="improvements">
+</div></div>
+</section><!-- IMPROVEMENTS --><section id="improvements">
   <div class="section-eyebrow">Roadmap</div>
   <h2>SUGGESTED IMPROVEMENTS</h2>
-  <p class="section-lead">High-value fixes and new features, categorised by impact and implementation complexity.</p>
+  <p class="section-lead">
+    High-value fixes and new features, categorised by impact and implementation complexity.
+  </p>
   <div class="improvements-list">
 
-```
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Tyre Temperature Model</h3><p>Track heat per tyre based on slip work (force x speed difference). Scale the Pacejka D parameter up as tyres warm into their operating window, then degrade beyond peak temperature. Adds a warm-up / graining dynamic relevant to lap simulation.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Tyre Wear Degradation</h3><p>Accumulate tyre wear as a scalar that reduces <code>linearPeakD</code> and <code>lateralPeakD</code> over the session. Expose wear rate as a tuning parameter. Opens up compound strategy and long-run pace modelling.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Weight Transfer History Buffer</h3><p>Sample and store per-wheel normal force over a rolling window of frames. Use this to drive a chassis pitch / roll animation system decoupled from the physics body, giving smoother visual responses without affecting simulation forces.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Transmission: Torque Converter</h3><p>The current automatic mode engages the clutch directly. A torque converter model (stall torque ratio, lockup speed) would improve low-speed automatic behaviour and creep, particularly relevant for muscle car or SUV feel profiles.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: High</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Fuel Load Simulation</h3><p>Model a fuel tank as a point mass that depletes over time based on throttle position and engine load. The shifting CoM and reducing vehicle mass naturally alter handling balance across a stint without any additional tuning parameters.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: Low</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type new">New Feature</span><h3>Brake Temperature &amp; Fade</h3><p>Accumulate brake disc temperature from sustained braking events. Reduce effective <code>brakeTorque</code> as temperature climbs past a threshold, recovering as the discs cool. Pairs naturally with the tyre temperature system for a complete thermal model.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>Multi-Surface Layer Detection</h3><p>Extend the raycast to read a texture or tag from the hit surface and automatically set <code>groundSurfaceCoefficient</code> per wheel per frame. Would allow seamless transitions across tarmac, gravel, and kerbs mid-corner.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>Per-Axle Brake Bias Adjustment</h3><p>Expose brake balance as a runtime-adjustable value (mapped to a key or axis) rather than a fixed ScriptableObject field. Allows the driver to dial out locking under braking mid-session, mirroring a real brake balance bar.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: Low</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>In-Editor Live Telemetry Window</h3><p>A custom EditorWindow that reads from the active <code>CarController</code> in Play Mode and displays per-wheel slip, normal force, tyre load, and RPM in real time &mdash; replacing the OnDrawGizmos sphere readout with a proper dashboard.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>Suspension Geometry: Camber &amp; Toe</h3><p>Add static camber and toe angle offsets to each wheel's tuning data. Factor these into the slip angle calculation so corner-entry and mid-corner lateral force balance can be tuned geometrically as well as through spring rates.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: Medium</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>Force Feedback Output API</h3><p>Expose a lightweight data struct each fixed frame containing steering rack force, wheel vibration magnitude, and kerb impact transients. Any force-feedback peripheral or haptic system can consume this without knowing anything about the internals.</p><div class="priority-row"><span class="priority">Impact: Medium</span><span class="priority">Effort: Low</span></div></div>
-<div class="improvement-card reveal"><span class="imp-type enhance">Enhancement</span><h3>Replay &amp; Data Logging System</h3><p>Record per-frame telemetry (speed, RPM, slip ratios, G-forces, gear) to a lightweight buffer during a run. Play back the ghost as a visual overlay and export the CSV for post-session analysis &mdash; useful for tuning iteration and lap comparison.</p><div class="priority-row"><span class="priority">Impact: High</span><span class="priority">Effort: High</span></div></div>
-
-<div class="improvement-card reveal" style="position:relative;overflow:hidden;border-top:2px solid rgba(51,170,255,0.4)">
-  <div style="position:absolute;top:0;right:0;width:100px;height:100px;background:radial-gradient(circle at top right,rgba(51,170,255,0.08),transparent 70%);pointer-events:none"></div>
-  <span class="imp-type enhance">Enhancement</span>
-  <h3>Tyre Relaxation Length Filter</h3>
-  <p>Lateral force currently reaches steady-state instantaneously regardless of vehicle speed. In reality, tyres build lateral force over a physical travel distance &mdash; the relaxation length, typically 0.3&ndash;0.5 m for road car tyres. This produces a speed-dependent time constant: <code>&tau; = &lambda; / |V|</code>. At low speed the tyre responds sluggishly (correct &mdash; parking lot cornering feels heavy); at high speed it converges almost instantly. Implement as a first-order lag on <code>filteredLateralForce</code> in <code>CalculateLateralSlipForce</code>, driven by <code>|V| / relaxationLength</code> per fixed timestep. Also naturally smooths the lateral discontinuity that currently occurs at the <code>staticFrictionThreshold</code> speed boundary. The Pacejka formula itself requires no changes.</p>
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Tyre Temperature Model</h3>
+  <p>Track heat per tyre based on slip work (force × speed difference). Scale the Pacejka D parameter up as tyres warm into their operating window, then degrade beyond peak temperature. Adds a warm-up / graining dynamic relevant to lap simulation.</p>
   <div class="priority-row">
     <span class="priority">Impact: High</span>
-    <span class="priority">Effort: Low</span>
-    <span class="priority">TyreFriction.cs</span>
-    <span class="priority">TyreFrictionTuning.cs</span>
-    <span class="priority">WheelData.cs</span>
+    <span class="priority">Effort: Medium</span>
   </div>
 </div>
-```
 
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Tyre Wear Degradation</h3>
+  <p>Accumulate tyre wear as a scalar that reduces <code>linearPeakD</code> and <code>lateralPeakD</code> over the session. Expose wear rate as a tuning parameter. Opens up compound strategy and long-run pace modelling.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: High</span>
+    <span class="priority">Effort: Medium</span>
   </div>
-</section>
+</div>
 
-<!-- ── ARCHITECTURE ── -->
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Weight Transfer History Buffer</h3>
+  <p>Sample and store per-wheel normal force over a rolling window of frames. Use this to drive a chassis pitch / roll animation system decoupled from the physics body, giving smoother visual responses without affecting simulation forces.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: Medium</span>
+  </div>
+</div>
 
-<section id="architecture">
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Transmission: Torque Converter</h3>
+  <p>The current automatic mode engages the clutch directly. A torque converter model (stall torque ratio, lockup speed) would improve low-speed automatic behaviour and creep, particularly relevant for muscle car or SUV feel profiles.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: High</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Fuel Load Simulation</h3>
+  <p>Model a fuel tank as a point mass that depletes over time based on throttle position and engine load. The shifting CoM and reducing vehicle mass naturally alter handling balance across a stint without any additional tuning parameters.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: Low</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type new">New Feature</span>
+  <h3>Brake Temperature &amp; Fade</h3>
+  <p>Accumulate brake disc temperature from sustained braking events. Reduce effective <code>brakeTorque</code> as temperature climbs past a threshold, recovering as the discs cool. Pairs naturally with the tyre temperature system for a complete thermal model.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: High</span>
+    <span class="priority">Effort: Medium</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>Multi-Surface Layer Detection</h3>
+  <p>Extend the raycast to read a texture or tag from the hit surface and automatically set <code>groundSurfaceCoefficient</code> per wheel per frame. Would allow seamless transitions across tarmac, gravel, and kerbs mid-corner.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: High</span>
+    <span class="priority">Effort: Medium</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>Per-Axle Brake Bias Adjustment</h3>
+  <p>Expose brake balance as a runtime-adjustable value (mapped to a key or axis) rather than a fixed ScriptableObject field. Allows the driver to dial out locking under braking mid-session, mirroring a real brake balance bar.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: Low</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>In-Editor Live Telemetry Window</h3>
+  <p>A custom EditorWindow that reads from the active <code>CarController</code> in Play Mode and displays per-wheel slip, normal force, tyre load, and RPM in real time — replacing the OnDrawGizmos sphere readout with a proper dashboard.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: Medium</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>Suspension Geometry: Camber &amp; Toe</h3>
+  <p>Add static camber and toe angle offsets to each wheel's tuning data. Factor these into the slip angle calculation so corner-entry and mid-corner lateral force balance can be tuned geometrically as well as through spring rates.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: High</span>
+    <span class="priority">Effort: Medium</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>Force Feedback Output API</h3>
+  <p>Expose a lightweight data struct each fixed frame containing steering rack force, wheel vibration magnitude, and kerb impact transients. Any force-feedback peripheral or haptic system can consume this without knowing anything about the internals.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: Medium</span>
+    <span class="priority">Effort: Low</span>
+  </div>
+</div>
+
+<div class="improvement-card reveal">
+  <span class="imp-type enhance">Enhancement</span>
+  <h3>Replay &amp; Data Logging System</h3>
+  <p>Record per-frame telemetry (speed, RPM, slip ratios, G-forces, gear) to a lightweight buffer during a run. Play back the ghost as a visual overlay and export the CSV for post-session analysis — useful for tuning iteration and lap comparison.</p>
+  <div class="priority-row">
+    <span class="priority">Impact: High</span>
+    <span class="priority">Effort: High</span>
+  </div>
+</div>
+
+
+</div>
+</section><!-- ARCHITECTURE --><section id="architecture">
   <div class="section-eyebrow">System Map</div>
   <h2>ARCHITECTURE</h2>
-  <p class="section-lead">How the core runtime scripts and tuning assets relate to each other.</p>
+  <p class="section-lead">
+    How the core runtime scripts and tuning assets relate to each other.
+  </p>
   <div class="arch-diagram reveal">
     <div class="arch-col">
       <div class="arch-col-header">Controllers</div>
@@ -367,19 +1241,76 @@ finalDriveRatio = <span class="val">2.8f</span>;  <span class="cm">// less torqu
       <div class="arch-item">SteeringData</div>
     </div>
   </div>
-</section>
-
-<footer>
+</section><!-- FOOTER --><footer>
   <div class="footer-logo">VEHICLE<span>SIM</span></div>
-  <span class="footer-text">Physics Framework &mdash; Unity 2022+</span>
+  <span class="footer-text">Physics Framework — Unity 2022+</span>
   <ul class="footer-links">
     <li><a href="#features">Features</a></li>
     <li><a href="#tips">Dev Tips</a></li>
     <li><a href="#improvements">Roadmap</a></li>
   </ul>
-</footer>
+</footer><script>
+  // ── SCROLL REVEAL ──
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, 60 * (Array.from(entry.target.parentElement?.children || []).indexOf(entry.target)));
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 
-<script src="vehiclesim.js"></script>
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-</body>
+  // ── ANIMATED TELEMETRY ──
+  function rand(min, max) {
+    return (Math.random() * (max - min) + min);
+  }
+
+  const rpmEl    = document.getElementById('rpm-val');
+  const speedEl  = document.getElementById('speed-val');
+  const gEl      = document.getElementById('g-val');
+
+  let rpm   = 4820;
+  let speed = 87;
+  let g     = 0.74;
+
+  setInterval(() => {
+    rpm   += rand(-120, 120);
+    speed += rand(-1.5, 1.5);
+    g     += rand(-0.05, 0.05);
+
+    rpm   = Math.max(1000, Math.min(8000, rpm));
+    speed = Math.max(0,    Math.min(160, speed));
+    g     = Math.max(0,    Math.min(1.4, g));
+
+    if (rpmEl) {
+      rpmEl.childNodes[0].textContent = Math.round(rpm).toLocaleString();
+      rpmEl.className = 'telem-value ' + (rpm > 6500 ? 'red' : rpm > 4000 ? 'yellow' : 'green');
+    }
+    if (speedEl) speedEl.childNodes[0].textContent = Math.round(speed);
+    if (gEl) {
+      gEl.childNodes[0].textContent = g.toFixed(2);
+      gEl.className = 'telem-value ' + (g > 1.0 ? 'red' : g > 0.6 ? 'yellow' : 'green');
+    }
+  }, 600);
+
+  // ── SMOOTH NAV HIGHLIGHT ──
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => {
+      if (window.scrollY >= s.offsetTop - 100) current = s.id;
+    });
+    navLinks.forEach(a => {
+      a.style.color = a.getAttribute('href') === '#' + current
+        ? 'var(--accent)'
+        : '';
+    });
+  }, { passive: true });
+</script></body>
 </html>
